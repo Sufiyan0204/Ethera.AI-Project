@@ -2,7 +2,7 @@
    Team Task Manager — Shared Client-Side JavaScript
    ===================================================== */
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "/api";
 
 /* ---------- Auth Helpers ---------- */
 const Auth = {
