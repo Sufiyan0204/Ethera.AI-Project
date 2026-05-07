@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up — Team Task Manager</title>
+  <meta name="description" content="Create your Team Task Manager account to manage projects and tasks." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-icon">🚀</div>
+        <h1>Team Task Manager</h1>
+        <p>Create your account to get started</p>
+      </div>
+
+      <form id="signup-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="name">Full Name</label>
+          <input id="name" type="text" class="form-control" placeholder="Jane Doe" autocomplete="name" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <input id="email" type="email" class="form-control" placeholder="jane@example.com" autocomplete="email" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input id="password" type="password" class="form-control" placeholder="Min. 6 characters" autocomplete="new-password" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Account Role</label>
+          <div class="role-select-group">
+            <label class="role-pill" id="pill-member">
+              <input type="radio" name="role" value="Member" checked />
+              👤 Member
+            </label>
+            <label class="role-pill" id="pill-admin">
+              <input type="radio" name="role" value="Admin" />
+              👑 Admin
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-signup" class="btn btn-primary">Create Account</button>
+      </form>
+
+      <p class="auth-link">Already have an account? <a href="login.html">Sign in</a></p>
+    </div>
+  </div>
+
+  <script src="scripts.js"></script>
+  <script>
+    // Redirect if already logged in
+    Auth.requireGuest();
+
+    // Role pill toggle
+    const pills = document.querySelectorAll(".role-pill");
+    const radios = document.querySelectorAll('input[name="role"]');
+
+    function updatePills() {
+      pills.forEach(p => p.classList.remove("selected-admin", "selected-member"));
+      const selected = document.querySelector('input[name="role"]:checked');
+      if (selected) {
+        const pill = selected.closest(".role-pill");
+        pill.classList.add(selected.value === "Admin" ? "selected-admin" : "selected-member");
+      }
+    }
+
+    radios.forEach(r => r.addEventListener("change", updatePills));
+    // Set initial selected state
+    document.getElementById("pill-member").classList.add("selected-member");
+
+    // Form submission
+    document.getElementById("signup-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("btn-signup");
+
+      const name     = document.getElementById("name").value.trim();
+      const email    = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const role     = document.querySelector('input[name="role"]:checked')?.value || "Member";
+
+      if (!name || !email || !password) {
+        return Toast.error("All fields are required.");
+      }
+
+      setLoading(btn, true);
+
+      const res = await apiFetch("/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({ name, email, password, role }),
+      });
+
+      setLoading(btn, false);
+
+      if (res && res.ok) {
+        Auth.setSession(res.data.token, res.data.user);
+        Toast.success("Account created! Redirecting…");
+        setTimeout(() => window.location.href = "dashboard.html", 800);
+      } else {
+        Toast.error(res?.data?.error || "Registration failed.");
+      }
+    });
+  </script>
+</body>
+</html>

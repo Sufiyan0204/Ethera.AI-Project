@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Projects — Team Task Manager</title>
+  <meta name="description" content="Manage your team projects, members, and progress." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app-wrapper">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🚀</div>
+      <h1>TaskManager</h1>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="nav-label">Main</span>
+      <div class="nav-item" data-page="dashboard.html"><span class="nav-icon">📊</span> Dashboard</div>
+      <div class="nav-item active" data-page="projects.html"><span class="nav-icon">📁</span> Projects</div>
+      <div class="nav-item" data-page="tasks.html"><span class="nav-icon">✅</span> Tasks</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="sidebar-avatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-user-name">Loading…</div>
+          <div class="user-role" id="sidebar-user-role">—</div>
+        </div>
+        <button class="btn-logout" id="btn-logout" title="Sign out">⏻</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="topbar">
+      <h2>📁 Projects</h2>
+    </div>
+
+    <div class="page-content">
+      <div class="page-header">
+        <h3>All Projects</h3>
+        <button class="btn btn-primary" id="btn-new-project" style="display:none;" onclick="openModal('modal-project')">
+          + New Project
+        </button>
+      </div>
+
+      <!-- Projects Table -->
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Project</th>
+              <th>Description</th>
+              <th>Members</th>
+              <th>Created</th>
+              <th id="th-actions" style="display:none;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="projects-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:40px;"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Create Project Modal -->
+<div class="modal-overlay" id="modal-project">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Create New Project</h3>
+      <button class="modal-close" onclick="closeModal('modal-project')">✕</button>
+    </div>
+    <form id="form-project">
+      <div class="form-group">
+        <label class="form-label" for="proj-title">Project Title *</label>
+        <input id="proj-title" class="form-control" placeholder="e.g. Website Redesign" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="proj-desc">Description</label>
+        <textarea id="proj-desc" class="form-control" rows="3" placeholder="Brief description…"></textarea>
+      </div>
+      <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-project')">Cancel</button>
+        <button type="submit" id="btn-create-proj" class="btn btn-primary">Create Project</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Member Modal -->
+<div class="modal-overlay" id="modal-add-member">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Member to Project</h3>
+      <button class="modal-close" onclick="closeModal('modal-add-member')">✕</button>
+    </div>
+    <form id="form-add-member">
+      <div class="form-group">
+        <label class="form-label" for="member-select">Select User</label>
+        <select id="member-select" class="form-control" required>
+          <option value="">— Select a user —</option>
+        </select>
+      </div>
+      <input type="hidden" id="member-project-id" />
+      <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-member')">Cancel</button>
+        <button type="submit" id="btn-add-member" class="btn btn-primary">Add Member</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="scripts.js"></script>
+<script>
+  if (!Auth.requireAuth()) throw new Error("Unauthenticated");
+  initSidebar();
+
+  const isAdmin = Auth.isAdmin();
+  if (isAdmin) {
+    document.getElementById("btn-new-project").style.display = "flex";
+    document.getElementById("th-actions").style.display = "";
+  }
+
+  let allUsers = [];
+
+  async function loadUsers() {
+    const res = await apiFetch("/users");
+    if (res && res.ok) allUsers = res.data;
+  }
+
+  async function loadProjects() {
+    const res = await apiFetch("/projects");
+    const tbody = document.getElementById("projects-tbody");
+
+    if (!res || !res.ok) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--danger);">Failed to load projects</td></tr>`;
+      return;
+    }
+
+    if (!res.data.length) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📂</div><p>No projects yet. Create one!</p></div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = res.data.map(p => `
+      <tr>
+        <td><strong>${p.title}</strong></td>
+        <td style="color:var(--text-muted);max-width:240px;">${p.description || "<em>No description</em>"}</td>
+        <td>
+          <span style="background:rgba(99,102,241,.12);color:var(--primary-light);border-radius:20px;padding:3px 10px;font-size:.75rem;font-weight:600;">
+            👥 ${p.members.length}
+          </span>
+        </td>
+        <td style="color:var(--text-muted);font-size:.8rem;">${formatDate(p.created_at)}</td>
+        ${isAdmin ? `
+        <td>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-outline" onclick="openAddMember('${p.id}')">+ Member</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteProject('${p.id}', this)">Delete</button>
+          </div>
+        </td>` : ""}
+      </tr>
+    `).join("");
+  }
+
+  async function deleteProject(id, btn) {
+    if (!confirm("Delete this project and all its tasks?")) return;
+    setLoading(btn, true);
+    const res = await apiFetch(`/projects/${id}`, { method: "DELETE" });
+    if (res && res.ok) {
+      Toast.success("Project deleted.");
+      loadProjects();
+    } else {
+      Toast.error(res?.data?.error || "Delete failed.");
+      setLoading(btn, false);
+    }
+  }
+
+  function openAddMember(projectId) {
+    document.getElementById("member-project-id").value = projectId;
+    const sel = document.getElementById("member-select");
+    sel.innerHTML = '<option value="">— Select a user —</option>' +
+      allUsers.map(u => `<option value="${u.id}">${u.name} (${u.role})</option>`).join("");
+    openModal("modal-add-member");
+  }
+
+  document.getElementById("form-project").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("btn-create-proj");
+    const title = document.getElementById("proj-title").value.trim();
+    const description = document.getElementById("proj-desc").value.trim();
+
+    if (!title) return Toast.error("Title is required.");
+    setLoading(btn, true);
+
+    const res = await apiFetch("/projects", {
+      method: "POST",
+      body: JSON.stringify({ title, description }),
+    });
+
+    setLoading(btn, false);
+
+    if (res && res.ok) {
+      Toast.success("Project created!");
+      closeModal("modal-project");
+      document.getElementById("form-project").reset();
+      loadProjects();
+    } else {
+      Toast.error(res?.data?.error || "Failed to create project.");
+    }
+  });
+
+  document.getElementById("form-add-member").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("btn-add-member");
+    const projectId = document.getElementById("member-project-id").value;
+    const userId = document.getElementById("member-select").value;
+
+    if (!userId) return Toast.error("Please select a user.");
+    setLoading(btn, true);
+
+    const res = await apiFetch(`/projects/${projectId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ user_id: userId }),
+    });
+
+    setLoading(btn, false);
+
+    if (res && res.ok) {
+      Toast.success("Member added!");
+      closeModal("modal-add-member");
+      loadProjects();
+    } else {
+      Toast.error(res?.data?.error || "Failed to add member.");
+    }
+  });
+
+  // Init
+  loadUsers();
+  loadProjects();
+</script>
+</body>
+</html>

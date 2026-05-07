@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Team Task Manager</title>
+  <meta name="description" content="View your team's task overview, stats, and recent activity." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app-wrapper">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🚀</div>
+      <h1>TaskManager</h1>
+    </div>
+
+    <nav class="sidebar-nav">
+      <span class="nav-label">Main</span>
+      <div class="nav-item active" data-page="dashboard.html">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" data-page="projects.html">
+        <span class="nav-icon">📁</span> Projects
+      </div>
+      <div class="nav-item" data-page="tasks.html">
+        <span class="nav-icon">✅</span> Tasks
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="sidebar-avatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-user-name">Loading…</div>
+          <div class="user-role" id="sidebar-user-role">—</div>
+        </div>
+        <button class="btn-logout" id="btn-logout" title="Sign out">⏻</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="topbar">
+      <h2>📊 Dashboard</h2>
+      <div class="topbar-right">
+        <span id="topbar-greeting" style="color:var(--text-muted);font-size:.875rem;"></span>
+      </div>
+    </div>
+
+    <div class="page-content">
+
+      <!-- Stats Grid -->
+      <div class="stats-grid" id="stats-grid">
+        <!-- Populated by JS -->
+        <div class="stat-card"><div class="spinner"></div></div>
+      </div>
+
+      <!-- Row: Recent Tasks + Projects -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px;">
+
+        <!-- Recent Tasks -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <h4 style="font-weight:700;font-size:1rem;">🗂 Recent Tasks</h4>
+            <a href="tasks.html" style="font-size:.8rem;">View all →</a>
+          </div>
+          <div id="recent-tasks">
+            <div class="spinner"></div>
+          </div>
+        </div>
+
+        <!-- Projects Summary -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <h4 style="font-weight:700;font-size:1rem;">📁 Projects</h4>
+            <a href="projects.html" style="font-size:.8rem;">View all →</a>
+          </div>
+          <div id="projects-list">
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-content -->
+  </main>
+</div>
+
+<script src="scripts.js"></script>
+<script>
+  if (!Auth.requireAuth()) throw new Error("Unauthenticated");
+  initSidebar();
+
+  // Greeting
+  const user = Auth.getUser();
+  document.getElementById("topbar-greeting").textContent = `Hello, ${user.name} 👋`;
+
+  async function loadStats() {
+    const res = await apiFetch("/tasks/stats/overview");
+    if (!res || !res.ok) return;
+    const s = res.data;
+
+    const grid = document.getElementById("stats-grid");
+    grid.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-icon indigo">📋</div>
+        <div class="stat-info">
+          <div class="stat-value" style="color:var(--primary-light)">${s.total_tasks}</div>
+          <div class="stat-label">Total Tasks</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon amber">⏳</div>
+        <div class="stat-info">
+          <div class="stat-value" style="color:#fcd34d">${s.in_progress}</div>
+          <div class="stat-label">In Progress</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">✔</div>
+        <div class="stat-info">
+          <div class="stat-value" style="color:#34d399">${s.done}</div>
+          <div class="stat-label">Completed</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red">⚠</div>
+        <div class="stat-info">
+          <div class="stat-value" style="color:#fca5a5">${s.overdue}</div>
+          <div class="stat-label">Overdue</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon cyan">📁</div>
+        <div class="stat-info">
+          <div class="stat-value" style="color:#67e8f9">${s.total_projects}</div>
+          <div class="stat-label">Projects</div>
+        </div>
+      </div>
+      ${s.total_members !== undefined ? `
+      <div class="stat-card">
+        <div class="stat-icon indigo">👥</div>
+        <div class="stat-info">
+          <div class="stat-value" style="color:var(--primary-light)">${s.total_members}</div>
+          <div class="stat-label">Team Members</div>
+        </div>
+      </div>` : ""}
+    `;
+  }
+
+  async function loadRecentTasks() {
+    const res = await apiFetch("/tasks");
+    const el = document.getElementById("recent-tasks");
+    if (!res || !res.ok || !res.data.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No tasks yet</p></div>`;
+      return;
+    }
+    const tasks = res.data.slice(0, 5);
+    el.innerHTML = tasks.map(t => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-light);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.title}</div>
+          <div style="font-size:.75rem;color:var(--text-muted);">${formatDate(t.due_date)}</div>
+        </div>
+        <div>${statusBadge(t.status)} ${t.overdue ? overdueBadge() : ""}</div>
+      </div>
+    `).join("");
+  }
+
+  async function loadProjectsList() {
+    const res = await apiFetch("/projects");
+    const el = document.getElementById("projects-list");
+    if (!res || !res.ok || !res.data.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div><p>No projects yet</p></div>`;
+      return;
+    }
+    const projects = res.data.slice(0, 6);
+    el.innerHTML = projects.map(p => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-light);cursor:pointer;"
+           onclick="window.location.href='projects.html'">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--primary);flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.title}</div>
+          <div style="font-size:.75rem;color:var(--text-muted);">${p.members.length} member${p.members.length !== 1 ? "s" : ""}</div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  loadStats();
+  loadRecentTasks();
+  loadProjectsList();
+</script>
+</body>
+</html>

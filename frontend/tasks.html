@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tasks — Team Task Manager</title>
+  <meta name="description" content="View and manage all your team tasks with status tracking." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app-wrapper">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🚀</div>
+      <h1>TaskManager</h1>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="nav-label">Main</span>
+      <div class="nav-item" data-page="dashboard.html"><span class="nav-icon">📊</span> Dashboard</div>
+      <div class="nav-item" data-page="projects.html"><span class="nav-icon">📁</span> Projects</div>
+      <div class="nav-item active" data-page="tasks.html"><span class="nav-icon">✅</span> Tasks</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="sidebar-avatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-user-name">Loading…</div>
+          <div class="user-role" id="sidebar-user-role">—</div>
+        </div>
+        <button class="btn-logout" id="btn-logout" title="Sign out">⏻</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="topbar">
+      <h2>✅ Tasks</h2>
+      <div class="topbar-right">
+        <!-- Filter by status -->
+        <select id="filter-status" class="form-control" style="width:160px;">
+          <option value="">All Statuses</option>
+          <option value="Todo">Todo</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Done">Done</option>
+        </select>
+        <button class="btn btn-primary" id="btn-new-task" style="display:none;" onclick="openCreateTask()">
+          + New Task
+        </button>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="page-header">
+        <h3 id="tasks-heading">All Tasks</h3>
+        <span id="task-count" style="color:var(--text-muted);font-size:.875rem;"></span>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Project</th>
+              <th>Assigned To</th>
+              <th>Status</th>
+              <th>Due Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tasks-tbody">
+            <tr><td colspan="6" style="text-align:center;padding:40px;"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Create Task Modal (Admin only) -->
+<div class="modal-overlay" id="modal-task">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h3>Create New Task</h3>
+      <button class="modal-close" onclick="closeModal('modal-task')">✕</button>
+    </div>
+    <form id="form-task">
+      <div class="form-group">
+        <label class="form-label" for="task-title">Task Title *</label>
+        <input id="task-title" class="form-control" placeholder="e.g. Design landing page" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="task-desc">Description</label>
+        <textarea id="task-desc" class="form-control" rows="2" placeholder="Optional details…"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div class="form-group">
+          <label class="form-label" for="task-project">Project *</label>
+          <select id="task-project" class="form-control" required>
+            <option value="">— Select project —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="task-assign">Assign To *</label>
+          <select id="task-assign" class="form-control" required>
+            <option value="">— Select user —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="task-due">Due Date *</label>
+        <input id="task-due" class="form-control" type="date" required />
+      </div>
+      <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-task')">Cancel</button>
+        <button type="submit" id="btn-create-task" class="btn btn-primary">Create Task</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Update Status Modal -->
+<div class="modal-overlay" id="modal-status">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header">
+      <h3>Update Task Status</h3>
+      <button class="modal-close" onclick="closeModal('modal-status')">✕</button>
+    </div>
+    <form id="form-status">
+      <div class="form-group">
+        <label class="form-label">Task</label>
+        <p id="status-task-title" style="font-weight:600;margin-bottom:16px;"></p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="status-select">New Status</label>
+        <select id="status-select" class="form-control">
+          <option value="Todo">Todo</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Done">Done</option>
+        </select>
+      </div>
+      <input type="hidden" id="status-task-id" />
+      <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-status')">Cancel</button>
+        <button type="submit" id="btn-update-status" class="btn btn-primary">Update Status</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="scripts.js"></script>
+<script>
+  if (!Auth.requireAuth()) throw new Error("Unauthenticated");
+  initSidebar();
+
+  const isAdmin = Auth.isAdmin();
+  const currentUser = Auth.getUser();
+
+  if (isAdmin) {
+    document.getElementById("btn-new-task").style.display = "flex";
+    document.getElementById("tasks-heading").textContent = "All Tasks";
+  } else {
+    document.getElementById("tasks-heading").textContent = "My Tasks";
+  }
+
+  let allTasks = [];
+  let allUsers = [];
+  let allProjects = [];
+
+  // Build lookup maps
+  function userMap() {
+    return Object.fromEntries(allUsers.map(u => [u.id, u]));
+  }
+  function projectMap() {
+    return Object.fromEntries(allProjects.map(p => [p.id, p]));
+  }
+
+  async function loadData() {
+    const [uRes, pRes, tRes] = await Promise.all([
+      apiFetch("/users"),
+      apiFetch("/projects"),
+      apiFetch("/tasks"),
+    ]);
+    if (uRes && uRes.ok) allUsers = uRes.data;
+    if (pRes && pRes.ok) allProjects = pRes.data;
+    if (tRes && tRes.ok) allTasks = tRes.data;
+    renderTasks();
+  }
+
+  function renderTasks() {
+    const tbody = document.getElementById("tasks-tbody");
+    const filterStatus = document.getElementById("filter-status").value;
+    const uMap = userMap();
+    const pMap = projectMap();
+
+    let tasks = allTasks;
+    if (filterStatus) tasks = tasks.filter(t => t.status === filterStatus);
+
+    document.getElementById("task-count").textContent = `${tasks.length} task${tasks.length !== 1 ? "s" : ""}`;
+
+    if (!tasks.length) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📭</div><p>No tasks found.</p></div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = tasks.map(t => {
+      const assignedUser = uMap[t.assigned_to];
+      const proj = pMap[t.project_id];
+      const canEdit = isAdmin || t.assigned_to === currentUser.id;
+
+      return `
+      <tr class="${t.overdue ? "overdue-row" : ""}">
+        <td>
+          <div style="font-weight:600;">${t.title}</div>
+          ${t.description ? `<div style="font-size:.75rem;color:var(--text-muted);margin-top:2px;">${t.description.slice(0,60)}${t.description.length>60?"…":""}</div>` : ""}
+        </td>
+        <td style="color:var(--text-muted);font-size:.85rem;">${proj ? proj.title : "<em>—</em>"}</td>
+        <td>
+          ${assignedUser ? `
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">
+                ${assignedUser.name.charAt(0).toUpperCase()}
+              </div>
+              <span style="font-size:.85rem;">${assignedUser.name}</span>
+            </div>` : "<em style='color:var(--text-muted)'>Unassigned</em>"}
+        </td>
+        <td>${statusBadge(t.status)} ${t.overdue ? overdueBadge() : ""}</td>
+        <td style="font-size:.82rem;${t.overdue ? "color:#fca5a5;" : "color:var(--text-muted);"}">${formatDate(t.due_date)}</td>
+        <td>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            ${canEdit ? `<button class="btn btn-sm btn-outline" onclick="openUpdateStatus('${t.id}', '${t.title}', '${t.status}')">Update Status</button>` : ""}
+            ${isAdmin ? `<button class="btn btn-sm btn-danger" onclick="deleteTask('${t.id}', this)">Delete</button>` : ""}
+          </div>
+        </td>
+      </tr>
+    `;
+    }).join("");
+  }
+
+  document.getElementById("filter-status").addEventListener("change", renderTasks);
+
+  function openUpdateStatus(id, title, currentStatus) {
+    document.getElementById("status-task-id").value = id;
+    document.getElementById("status-task-title").textContent = title;
+    document.getElementById("status-select").value = currentStatus;
+    openModal("modal-status");
+  }
+
+  document.getElementById("form-status").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("btn-update-status");
+    const taskId = document.getElementById("status-task-id").value;
+    const status = document.getElementById("status-select").value;
+
+    setLoading(btn, true);
+    const res = await apiFetch(`/tasks/${taskId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+    setLoading(btn, false);
+
+    if (res && res.ok) {
+      Toast.success("Status updated!");
+      closeModal("modal-status");
+      // Update in local array
+      const idx = allTasks.findIndex(t => t.id === taskId);
+      if (idx !== -1) allTasks[idx] = res.data.task;
+      renderTasks();
+    } else {
+      Toast.error(res?.data?.error || "Update failed.");
+    }
+  });
+
+  async function deleteTask(id, btn) {
+    if (!confirm("Delete this task?")) return;
+    setLoading(btn, true);
+    const res = await apiFetch(`/tasks/${id}`, { method: "DELETE" });
+    if (res && res.ok) {
+      Toast.success("Task deleted.");
+      allTasks = allTasks.filter(t => t.id !== id);
+      renderTasks();
+    } else {
+      Toast.error(res?.data?.error || "Delete failed.");
+      setLoading(btn, false);
+    }
+  }
+
+  async function openCreateTask() {
+    // Populate dropdowns
+    const projSel = document.getElementById("task-project");
+    const userSel = document.getElementById("task-assign");
+    projSel.innerHTML = '<option value="">— Select project —</option>' +
+      allProjects.map(p => `<option value="${p.id}">${p.title}</option>`).join("");
+    userSel.innerHTML = '<option value="">— Select user —</option>' +
+      allUsers.map(u => `<option value="${u.id}">${u.name} (${u.role})</option>`).join("");
+    openModal("modal-task");
+  }
+
+  document.getElementById("form-task").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("btn-create-task");
+    const title      = document.getElementById("task-title").value.trim();
+    const description = document.getElementById("task-desc").value.trim();
+    const project_id  = document.getElementById("task-project").value;
+    const assigned_to = document.getElementById("task-assign").value;
+    const due_date    = document.getElementById("task-due").value;
+
+    if (!title || !project_id || !assigned_to || !due_date) {
+      return Toast.error("All required fields must be filled.");
+    }
+
+    setLoading(btn, true);
+    const res = await apiFetch("/tasks", {
+      method: "POST",
+      body: JSON.stringify({ title, description, project_id, assigned_to, due_date }),
+    });
+    setLoading(btn, false);
+
+    if (res && res.ok) {
+      Toast.success("Task created!");
+      closeModal("modal-task");
+      document.getElementById("form-task").reset();
+      allTasks.unshift(res.data.task);
+      renderTasks();
+    } else {
+      Toast.error(res?.data?.error || "Failed to create task.");
+    }
+  });
+
+  loadData();
+</script>
+</body>
+</html>

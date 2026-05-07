@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Team Task Manager</title>
+  <meta name="description" content="Log in to Team Task Manager to manage your projects and tasks." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-icon">🚀</div>
+        <h1>Welcome Back</h1>
+        <p>Sign in to your Team Task Manager</p>
+      </div>
+
+      <form id="login-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <input id="email" type="email" class="form-control" placeholder="jane@example.com" autocomplete="email" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input id="password" type="password" class="form-control" placeholder="Your password" autocomplete="current-password" required />
+        </div>
+
+        <button type="submit" id="btn-login" class="btn btn-primary">Sign In</button>
+      </form>
+
+      <p class="auth-link">Don't have an account? <a href="index.html">Create one</a></p>
+    </div>
+  </div>
+
+  <script src="scripts.js"></script>
+  <script>
+    Auth.requireGuest();
+
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("btn-login");
+
+      const email    = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      if (!email || !password) {
+        return Toast.error("Email and password are required.");
+      }
+
+      setLoading(btn, true);
+
+      const res = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+
+      setLoading(btn, false);
+
+      if (res && res.ok) {
+        Auth.setSession(res.data.token, res.data.user);
+        Toast.success("Logged in! Redirecting…");
+        setTimeout(() => window.location.href = "dashboard.html", 600);
+      } else {
+        Toast.error(res?.data?.error || "Login failed.");
+      }
+    });
+  </script>
+</body>
+</html>
